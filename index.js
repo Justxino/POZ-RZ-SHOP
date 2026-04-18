@@ -12,7 +12,7 @@ const {
   ChannelType
 } = require('discord.js');
 
-// ================= CLIENT (FIXED INTENTS) =================
+// ================= CLIENT =================
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -22,8 +22,6 @@ const client = new Client({
 
 // ================= EXPRESS =================
 const app = express();
-
-let orders = [];
 
 app.get('/', (req, res) => {
   res.send('POZ RZ PANEL LIVE 🟢');
@@ -119,7 +117,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ]
         });
 
-        await channel.send(`🎫 **NEW TICKET**\nUser: ${interaction.user.tag}`);
+        // CLOSE BUTTON
+        const closeRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('close_ticket')
+            .setLabel('🔒 Close Ticket')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await channel.send({
+          content: `🎫 **NEW TICKET**\nUser: ${interaction.user.tag}\n\nClick below to close this ticket.`,
+          components: [closeRow]
+        });
 
         return interaction.editReply(`✅ Ticket created: ${channel}`);
       }
@@ -131,6 +140,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ephemeral: true
         });
       }
+
+      // 🔒 CLOSE TICKET
+      if (interaction.customId === 'close_ticket') {
+
+        await interaction.reply({
+          content: "🔒 Closing ticket in 3 seconds...",
+          ephemeral: true
+        });
+
+        setTimeout(() => {
+          interaction.channel.delete().catch(() => {});
+        }, 3000);
+      }
     }
 
   } catch (err) {
@@ -138,7 +160,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (!interaction.replied && !interaction.deferred) {
       interaction.reply({
-        content: "❌ Something went wrong creating your ticket.",
+        content: "❌ Something went wrong.",
         ephemeral: true
       }).catch(() => {});
     }

@@ -27,10 +27,17 @@ app.get('/', (req, res) => {
   res.send('POZ RZ PANEL LIVE 🟢');
 });
 
-const PORT = process.env.PORT || 3000;
+app.listen(5000, '0.0.0.0', () => {
+  console.log("🔥 PANEL LIVE on port 5000");
+});
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log("🔥 PANEL LIVE");
+// ================= ERROR HANDLING =================
+client.on('error', (err) => {
+  console.error('Discord client error:', err.message);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err?.message || err);
 });
 
 // ================= READY =================
@@ -52,7 +59,6 @@ function getHighestAdminRole(guild) {
 
 // ================= INTERACTIONS =================
 client.on(Events.InteractionCreate, async (interaction) => {
-
   try {
 
     // ================= STORE =================
@@ -81,7 +87,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 🔓 AC Unban ➜ $25  
 💊 Personal Drug ➜ $35  
 💰 Coins ➜ 100 Diamonds = $10  
-🕹️ Tx-No clip ➜ $20
+🕹️ Tx-No clip per month ➜ $20
         `);
 
       return interaction.reply({
@@ -108,7 +114,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       if (!adminRole) {
         return interaction.reply({
-          content: '❌ No admin role found in this server.',
+          content: '❌ No admin role found.',
           ephemeral: true
         });
       }
@@ -141,7 +147,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
               ]
             },
             {
-              id: interaction.client.user.id,
+              id: client.user.id,
               allow: [
                 PermissionsBitField.Flags.ViewChannel,
                 PermissionsBitField.Flags.SendMessages,
@@ -158,13 +164,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
             .setStyle(ButtonStyle.Danger)
         );
 
-        await channel.send({
-          content: `🎫 **NEW ORDER TICKET**
-
+        const ticketEmbed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle('🎫 NEW ORDER TICKET')
+          .setDescription(`
 👤 Customer: <@${interaction.user.id}>
 🔔 Admins: <@&${adminRole.id}>
 
-Please wait for staff support.`,
+Please wait for support.
+          `);
+
+        await channel.send({
+          content: `<@&${adminRole.id}>`,
+          embeds: [ticketEmbed],
           components: [closeRow]
         });
 
@@ -173,7 +185,7 @@ Please wait for staff support.`,
         });
       }
 
-      // ================= CONTACT ADMIN =================
+      // ================= CONTACT =================
       if (interaction.customId === 'contact') {
 
         await interaction.deferReply({ ephemeral: true });
@@ -201,7 +213,7 @@ Please wait for staff support.`,
               ]
             },
             {
-              id: interaction.client.user.id,
+              id: client.user.id,
               allow: [
                 PermissionsBitField.Flags.ViewChannel,
                 PermissionsBitField.Flags.SendMessages,
@@ -218,13 +230,19 @@ Please wait for staff support.`,
             .setStyle(ButtonStyle.Danger)
         );
 
-        await channel.send({
-          content: `📩 **SUPPORT TICKET**
-
+        const supportEmbed = new EmbedBuilder()
+          .setColor(0x00b0f4)
+          .setTitle('📩 SUPPORT TICKET')
+          .setDescription(`
 👤 User: <@${interaction.user.id}>
 🔔 Admins: <@&${adminRole.id}>
 
-Staff will help you soon.`,
+Staff will help you soon.
+          `);
+
+        await channel.send({
+          content: `<@&${adminRole.id}>`,
+          embeds: [supportEmbed],
           components: [closeRow]
         });
 
@@ -233,12 +251,23 @@ Staff will help you soon.`,
         });
       }
 
-      // ================= CLOSE TICKET =================
+      // ================= CLOSE TICKET (ADMIN ONLY) =================
       if (interaction.customId === 'close_ticket') {
 
+        if (!interaction.member.roles.cache.has(adminRole.id)) {
+          return interaction.reply({
+            content: '❌ Only admins can close this ticket.',
+            ephemeral: true
+          });
+        }
+
+        const closeEmbed = new EmbedBuilder()
+          .setColor(0xff0000)
+          .setTitle('🔒 Closing Ticket')
+          .setDescription('This ticket will close in **3 seconds...**');
+
         await interaction.reply({
-          content: '🔒 Closing ticket in 3 seconds...',
-          ephemeral: true
+          embeds: [closeEmbed]
         });
 
         setTimeout(() => {

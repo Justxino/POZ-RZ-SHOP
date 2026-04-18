@@ -7,7 +7,8 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  Events
+  Events,
+  PermissionsBitField
 } = require('discord.js');
 
 // ================= CLIENT =================
@@ -76,10 +77,6 @@ app.get('/', (req, res) => {
         ⚡ System Active<br>
         🤖 Discord Connected
       </div>
-
-      <p style="font-size:12px;color:#aaa;">
-        GTA / FiveM Shop System
-      </p>
     </div>
   </body>
   </html>
@@ -90,12 +87,21 @@ app.listen(5000, '0.0.0.0', () => {
   console.log("🔥 POZ RZ PANEL LIVE on port 5000");
 });
 
+// ================= ERROR HANDLING =================
+client.on('error', (err) => {
+  console.error('Discord client error:', err.message);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err?.message || err);
+});
+
 // ================= READY =================
 client.once(Events.ClientReady, () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
-// ================= COMMANDS =================
+// ================= INTERACTIONS =================
 client.on(Events.InteractionCreate, async (interaction) => {
 
   try {
@@ -103,9 +109,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // ================= STORE =================
     if (interaction.isChatInputCommand() && interaction.commandName === 'store') {
 
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply();
-      }
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('buy')
+          .setLabel('🛒 Buy Now')
+          .setStyle(ButtonStyle.Success),
+
+        new ButtonBuilder()
+          .setCustomId('contact')
+          .setLabel('📩 Contact')
+          .setStyle(ButtonStyle.Primary)
+      );
 
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
@@ -121,27 +135,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         `)
         .setFooter({ text: 'POZ RZ • Premium System ⚡' });
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('buy')
-          .setLabel('🛒 Buy Now')
-          .setStyle(ButtonStyle.Success),
-
-        new ButtonBuilder()
-          .setCustomId('contact')
-          .setLabel('📩 Contact')
-          .setStyle(ButtonStyle.Primary)
-      );
-
-      return interaction.editReply({ embeds: [embed], components: [row] });
+      return interaction.reply({ embeds: [embed], components: [row] });
     }
 
     // ================= HELP =================
     if (interaction.isChatInputCommand() && interaction.commandName === 'help') {
-
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply();
-      }
 
       const help = new EmbedBuilder()
         .setColor(0x2ecc71)
@@ -151,25 +149,44 @@ client.on(Events.InteractionCreate, async (interaction) => {
 /help - Commands  
         `);
 
-      return interaction.editReply({ embeds: [help] });
+      return interaction.reply({ embeds: [help] });
     }
 
     // ================= BUTTONS =================
     if (interaction.isButton()) {
 
+      // 🛒 BUY BUTTON → CREATE TICKET
       if (interaction.customId === 'buy') {
 
-        orders.push({
-          user: interaction.user.tag,
-          time: new Date().toLocaleString()
+        const channel = await interaction.guild.channels.create({
+          name: `ticket-${interaction.user.username}`,
+          type: 0,
+          permissionOverwrites: [
+            {
+              id: interaction.guild.id,
+              deny: [PermissionsBitField.Flags.ViewChannel]
+            },
+            {
+              id: interaction.user.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages
+              ]
+            }
+          ]
+        });
+
+        await channel.send({
+          content: `🎫 New Order Ticket\nUser: ${interaction.user.tag}\nStaff will assist soon.`
         });
 
         return interaction.reply({
-          content: `🎫 Order created! Staff will contact you soon.`,
+          content: `✅ Ticket created: ${channel}`,
           ephemeral: true
         });
       }
 
+      // 📩 CONTACT BUTTON
       if (interaction.customId === 'contact') {
         return interaction.reply({
           content: `📩 DM <@${interaction.user.id}> for support.`,
@@ -181,7 +198,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
   } catch (err) {
     console.error("Error:", err);
   }
-
 });
 
 // ================= LOGIN =================

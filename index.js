@@ -8,92 +8,29 @@ const {
   ButtonBuilder,
   ButtonStyle,
   Events,
-  PermissionsBitField
+  PermissionsBitField,
+  ChannelType
 } = require('discord.js');
 
-// ================= CLIENT =================
+// ================= CLIENT (FIXED INTENTS) =================
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages
+  ]
 });
 
-// ================= EXPRESS PANEL =================
+// ================= EXPRESS =================
 const app = express();
 
 let orders = [];
 
 app.get('/', (req, res) => {
-  res.send(`
-  <html>
-  <head>
-    <title>POZ RZ PANEL</title>
-    <style>
-      body {
-        margin:0;
-        font-family: Arial;
-        background: linear-gradient(135deg,#0f172a,#1e3a8a);
-        color:white;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        height:100vh;
-      }
-
-      .card {
-        background: rgba(255,255,255,0.08);
-        padding:30px;
-        border-radius:15px;
-        width:400px;
-        text-align:center;
-      }
-
-      h1 { color:#38bdf8; }
-
-      .status {
-        margin-top:10px;
-        padding:10px;
-        border-radius:10px;
-        background:${process.env.DISCORD_TOKEN ? '#22c55e' : '#ef4444'};
-      }
-
-      .box {
-        margin-top:20px;
-        background:rgba(255,255,255,0.1);
-        padding:10px;
-        border-radius:10px;
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="card">
-      <h1>🛒 POZ RZ PANEL</h1>
-
-      <div class="status">
-        ${process.env.DISCORD_TOKEN ? '🟢 BOT ONLINE' : '🔴 BOT OFFLINE'}
-      </div>
-
-      <div class="box">
-        📦 Orders: ${orders.length}<br>
-        ⚡ System Active<br>
-        🤖 Discord Connected
-      </div>
-    </div>
-  </body>
-  </html>
-  `);
+  res.send('POZ RZ PANEL LIVE 🟢');
 });
 
 app.listen(5000, '0.0.0.0', () => {
-  console.log("🔥 POZ RZ PANEL LIVE on port 5000");
-});
-
-// ================= ERROR HANDLING =================
-client.on('error', (err) => {
-  console.error('Discord client error:', err.message);
-});
-
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled rejection:', err?.message || err);
+  console.log("🔥 PANEL LIVE");
 });
 
 // ================= READY =================
@@ -123,7 +60,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
-        .setTitle('🛒 POZ RZ PREMIUM STORE')
+        .setTitle('🛒 POZ RZ STORE')
         .setDescription(`
 💎 Coins Guns ➜ $20-$30  
 👕 Clothing Import ➜ $25  
@@ -132,8 +69,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 🔓 AC Unban ➜ $25  
 💊 Personal Drug ➜ $35  
 💰 Coins ➜ 100 Diamonds = $10
-        `)
-        .setFooter({ text: 'POZ RZ • Premium System ⚡' });
+        `);
 
       return interaction.reply({ embeds: [embed], components: [row] });
     }
@@ -144,10 +80,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const help = new EmbedBuilder()
         .setColor(0x2ecc71)
         .setTitle('📌 POZ RZ HELP')
-        .setDescription(`
-/store - Open shop  
-/help - Commands  
-        `);
+        .setDescription(`/store - Shop\n/help - Commands`);
 
       return interaction.reply({ embeds: [help] });
     }
@@ -155,12 +88,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // ================= BUTTONS =================
     if (interaction.isButton()) {
 
-      // 🛒 BUY BUTTON → CREATE TICKET
+      // 🛒 BUY → CREATE TICKET
       if (interaction.customId === 'buy') {
+
+        await interaction.deferReply({ ephemeral: true });
 
         const channel = await interaction.guild.channels.create({
           name: `ticket-${interaction.user.username}`,
-          type: 0,
+          type: ChannelType.GuildText,
           permissionOverwrites: [
             {
               id: interaction.guild.id,
@@ -172,21 +107,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 PermissionsBitField.Flags.ViewChannel,
                 PermissionsBitField.Flags.SendMessages
               ]
+            },
+            {
+              id: interaction.client.user.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.ManageChannels
+              ]
             }
           ]
         });
 
-        await channel.send({
-          content: `🎫 New Order Ticket\nUser: ${interaction.user.tag}\nStaff will assist soon.`
-        });
+        await channel.send(`🎫 **NEW TICKET**\nUser: ${interaction.user.tag}`);
 
-        return interaction.reply({
-          content: `✅ Ticket created: ${channel}`,
-          ephemeral: true
-        });
+        return interaction.editReply(`✅ Ticket created: ${channel}`);
       }
 
-      // 📩 CONTACT BUTTON
+      // 📩 CONTACT
       if (interaction.customId === 'contact') {
         return interaction.reply({
           content: `📩 DM <@${interaction.user.id}> for support.`,
@@ -196,7 +134,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
   } catch (err) {
-    console.error("Error:", err);
+    console.error("ERROR:", err);
+
+    if (!interaction.replied && !interaction.deferred) {
+      interaction.reply({
+        content: "❌ Something went wrong creating your ticket.",
+        ephemeral: true
+      }).catch(() => {});
+    }
   }
 });
 

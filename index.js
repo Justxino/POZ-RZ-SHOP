@@ -27,7 +27,9 @@ app.get('/', (req, res) => {
   res.send('POZ RZ PANEL LIVE 🟢');
 });
 
-app.listen(5000, '0.0.0.0', () => {
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
   console.log("🔥 PANEL LIVE");
 });
 
@@ -35,6 +37,18 @@ app.listen(5000, '0.0.0.0', () => {
 client.once(Events.ClientReady, () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
+
+// ================= GET HIGHEST ADMIN ROLE =================
+function getHighestAdminRole(guild) {
+  const adminRoles = guild.roles.cache
+    .filter(role =>
+      role.name !== '@everyone' &&
+      role.permissions.has(PermissionsBitField.Flags.Administrator)
+    )
+    .sort((a, b) => b.position - a.position);
+
+  return adminRoles.first() || null;
+}
 
 // ================= INTERACTIONS =================
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -52,7 +66,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         new ButtonBuilder()
           .setCustomId('contact')
-          .setLabel('📩 Contact')
+          .setLabel('📩 Contact Admin')
           .setStyle(ButtonStyle.Primary)
       );
 
@@ -66,10 +80,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 🚫 TX Unban ➜ $10  
 🔓 AC Unban ➜ $25  
 💊 Personal Drug ➜ $35  
-💰 Coins ➜ 100 Diamonds = $10
+💰 Coins ➜ 100 Diamonds = $10  
+🕹️ Tx-No clip ➜ $20
         `);
 
-      return interaction.reply({ embeds: [embed], components: [row] });
+      return interaction.reply({
+        embeds: [embed],
+        components: [row]
+      });
     }
 
     // ================= HELP =================
@@ -86,7 +104,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // ================= BUTTONS =================
     if (interaction.isButton()) {
 
-      // 🛒 BUY → CREATE TICKET
+      const adminRole = getHighestAdminRole(interaction.guild);
+
+      if (!adminRole) {
+        return interaction.reply({
+          content: '❌ No admin role found in this server.',
+          ephemeral: true
+        });
+      }
+
+      // ================= BUY NOW =================
       if (interaction.customId === 'buy') {
 
         await interaction.deferReply({ ephemeral: true });
@@ -107,6 +134,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
               ]
             },
             {
+              id: adminRole.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages
+              ]
+            },
+            {
               id: interaction.client.user.id,
               allow: [
                 PermissionsBitField.Flags.ViewChannel,
@@ -117,7 +151,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ]
         });
 
-        // CLOSE BUTTON
         const closeRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('close_ticket')
@@ -126,26 +159,85 @@ client.on(Events.InteractionCreate, async (interaction) => {
         );
 
         await channel.send({
-          content: `🎫 **NEW TICKET**\nUser: ${interaction.user.tag}\n\nClick below to close this ticket.`,
+          content: `🎫 **NEW ORDER TICKET**
+
+👤 Customer: <@${interaction.user.id}>
+🔔 Admins: <@&${adminRole.id}>
+
+Please wait for staff support.`,
           components: [closeRow]
         });
 
-        return interaction.editReply(`✅ Ticket created: ${channel}`);
-      }
-
-      // 📩 CONTACT
-      if (interaction.customId === 'contact') {
-        return interaction.reply({
-          content: `📩 DM <@${interaction.user.id}> for support.`,
-          ephemeral: true
+        return interaction.editReply({
+          content: `✅ Ticket created: ${channel}`
         });
       }
 
-      // 🔒 CLOSE TICKET
+      // ================= CONTACT ADMIN =================
+      if (interaction.customId === 'contact') {
+
+        await interaction.deferReply({ ephemeral: true });
+
+        const channel = await interaction.guild.channels.create({
+          name: `support-${interaction.user.username}`,
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            {
+              id: interaction.guild.id,
+              deny: [PermissionsBitField.Flags.ViewChannel]
+            },
+            {
+              id: interaction.user.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages
+              ]
+            },
+            {
+              id: adminRole.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages
+              ]
+            },
+            {
+              id: interaction.client.user.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.ManageChannels
+              ]
+            }
+          ]
+        });
+
+        const closeRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('close_ticket')
+            .setLabel('🔒 Close Ticket')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await channel.send({
+          content: `📩 **SUPPORT TICKET**
+
+👤 User: <@${interaction.user.id}>
+🔔 Admins: <@&${adminRole.id}>
+
+Staff will help you soon.`,
+          components: [closeRow]
+        });
+
+        return interaction.editReply({
+          content: `✅ Support ticket created: ${channel}`
+        });
+      }
+
+      // ================= CLOSE TICKET =================
       if (interaction.customId === 'close_ticket') {
 
         await interaction.reply({
-          content: "🔒 Closing ticket in 3 seconds...",
+          content: '🔒 Closing ticket in 3 seconds...',
           ephemeral: true
         });
 

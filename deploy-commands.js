@@ -1,3 +1,5 @@
+console.log(process.env.DISCORD_CLIENT_ID);
+console.log(process.env.DISCORD_GUILD_ID);
 require('dotenv').config();
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
@@ -8,7 +10,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Show bot commands')
+    .setDescription('Show commands')
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);

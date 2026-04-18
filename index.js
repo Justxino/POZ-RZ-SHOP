@@ -5,7 +5,7 @@ const express = require('express');
 // ================= EXPRESS (KEEP ALIVE) =================
 const app = express();
 app.get('/', (req, res) => res.send('POZ RZ Bot is running'));
-app.listen(3000, () => console.log('Web server running'));
+app.listen(5000, '0.0.0.0', () => console.log('Web server running on port 5000'));
 
 // ================= DISCORD BOT =================
 const client = new Client({

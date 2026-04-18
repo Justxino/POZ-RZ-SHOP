@@ -10,12 +10,16 @@ const {
   Events
 } = require('discord.js');
 
+// ================= CLIENT =================
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
+
+// ================= EXPRESS PANEL =================
 const app = express();
 
-// ================= ORDERS STORAGE =================
 let orders = [];
 
-// ================= DASHBOARD PANEL =================
 app.get('/', (req, res) => {
   res.send(`
   <html>
@@ -39,7 +43,6 @@ app.get('/', (req, res) => {
         border-radius:15px;
         width:400px;
         text-align:center;
-        box-shadow:0 0 25px rgba(0,0,0,0.6);
       }
 
       h1 { color:#38bdf8; }
@@ -62,20 +65,20 @@ app.get('/', (req, res) => {
 
   <body>
     <div class="card">
-      <h1>🛒 POZ RZ CONTROL PANEL</h1>
+      <h1>🛒 POZ RZ PANEL</h1>
 
       <div class="status">
         ${process.env.DISCORD_TOKEN ? '🟢 BOT ONLINE' : '🔴 BOT OFFLINE'}
       </div>
 
       <div class="box">
-        📦 Orders Stored: ${orders.length}<br>
-        ⚡ Shop System Active<br>
+        📦 Orders: ${orders.length}<br>
+        ⚡ System Active<br>
         🤖 Discord Connected
       </div>
 
-      <p style="font-size:12px;color:#aaa;margin-top:20px;">
-        GTA / FiveM Premium Shop System
+      <p style="font-size:12px;color:#aaa;">
+        GTA / FiveM Shop System
       </p>
     </div>
   </body>
@@ -83,20 +86,16 @@ app.get('/', (req, res) => {
   `);
 });
 
-app.listen(process.env.PORT || 3000, '0.0.0.0', () => {
-  console.log("🔥 POZ RZ PANEL LIVE");
+app.listen(5000, '0.0.0.0', () => {
+  console.log("🔥 POZ RZ PANEL LIVE on port 5000");
 });
 
-// ================= DISCORD BOT =================
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
-});
-
+// ================= READY =================
 client.once(Events.ClientReady, () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
-// ================= INTERACTIONS =================
+// ================= COMMANDS =================
 client.on(Events.InteractionCreate, async (interaction) => {
 
   try {
@@ -104,7 +103,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // ================= STORE =================
     if (interaction.isChatInputCommand() && interaction.commandName === 'store') {
 
-      await interaction.deferReply(); // ✅ FIX: prevents Unknown interaction
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply();
+      }
 
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
@@ -138,7 +139,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // ================= HELP =================
     if (interaction.isChatInputCommand() && interaction.commandName === 'help') {
 
-      await interaction.deferReply();
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply();
+      }
 
       const help = new EmbedBuilder()
         .setColor(0x2ecc71)
@@ -168,7 +171,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
 
       if (interaction.customId === 'contact') {
-
         return interaction.reply({
           content: `📩 DM <@${interaction.user.id}> for support.`,
           ephemeral: true
@@ -177,8 +179,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
   } catch (err) {
-    console.error("Interaction error:", err);
+    console.error("Error:", err);
   }
+
 });
 
 // ================= LOGIN =================

@@ -1,7 +1,15 @@
 require('dotenv').config();
-const { REST, Routes } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
-const commands = [];
+const commands = [
+  new SlashCommandBuilder()
+    .setName('store')
+    .setDescription('Show Poz RZ prices'),
+
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Show commands')
+].map(cmd => cmd.toJSON());
 
 if (!process.env.DISCORD_TOKEN) {
   console.error('ERROR: DISCORD_TOKEN is not set.');
@@ -13,18 +21,21 @@ if (!process.env.DISCORD_CLIENT_ID) {
   process.exit(1);
 }
 
-const rest = new REST().setToken(process.env.DISCORD_TOKEN);
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
   try {
-    console.log(`Started refreshing ${commands.length} application (/) commands.`);
+    console.log(`Deploying ${commands.length} commands...`);
 
     const data = await rest.put(
-      Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
-      { body: commands },
+      Routes.applicationGuildCommands(
+        process.env.DISCORD_CLIENT_ID,
+        process.env.DISCORD_GUILD_ID
+      ),
+      { body: commands }
     );
 
-    console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+    console.log(`Successfully loaded ${data.length} slash commands.`);
   } catch (error) {
     console.error(error);
   }

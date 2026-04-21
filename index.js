@@ -410,15 +410,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .setTitle('🛒 POZ RZ STORE')
           .setDescription(`
 💎 Coins Guns ➜ $20-$30
+
 👕 Clothing Import ➜ $25
+
 🔫 Gun Import ➜ $30
+
 🚫 TX Unban ➜ $10
+
 🔓 AC Unban ➜ $25
+
 💊 Personal Drug ➜ $35
+
 💰 Coins ➜ 10000 Diamonds = $10
+
 🕹️ Tx-No clip per month ➜ $20
           `)
-          .setImage(process.env.BANNER_URL || 'https://cdn.discordapp.com/attachments/1471825509859201129/1496007390435213332/content.png?ex=69e850f4&is=69e6ff74&hm=68a994f7f65a7055be920b5803d74c440f3335be77dba38ee25e4eae83049352&')
+          .setThumbnail(process.env.BANNER_URL || 'https://cdn.discordapp.com/attachments/1471825509859201129/1496007390435213332/content.png?ex=69e850f4&is=69e6ff74&hm=68a994f7f65a7055be920b5803d74c440f3335be77dba38ee25e4eae83049352&')
           .setFooter({ text: 'POZ RZ SHOP' });
         return interaction.reply({ embeds: [embed], components: [row] });
       }

@@ -17,50 +17,63 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildVoiceStates
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.MessageContent
   ]
 });
 
 // ================= EXPRESS =================
 const app = express();
-app.get('/', (req, res) => res.send('🟢 POZ RZ CRM ONLINE'));
-app.listen(process.env.PORT || 5000, () => console.log('🔥 CRM LIVE'));
+app.get('/', (req, res) => res.send('🟢 CRM ONLINE'));
+app.listen(process.env.PORT || 5000, () => {
+  console.log('🔥 CRM PANEL LIVE');
+});
 
 // ================= READY =================
 client.once(Events.ClientReady, () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
-// ================= SIMPLE AI ENGINE =================
-function aiReply(message) {
-  const msg = message.toLowerCase();
+// ================= SIMPLE AI =================
+function aiReply(msg) {
+  msg = msg.toLowerCase();
 
-  if (msg.includes("price")) return "💰 Check the store panel for updated prices.";
-  if (msg.includes("hello")) return "👋 Hello! A staff member will assist you soon.";
-  if (msg.includes("buy")) return "🛒 Use the store button to place an order.";
-  if (msg.includes("help")) return "📌 Support is on the way. Please wait...";
+  if (msg.includes("price")) return "💰 Check /store for prices.";
+  if (msg.includes("hello")) return "👋 Hello! Support will help you soon.";
+  if (msg.includes("buy")) return "🛒 Use store to purchase.";
+  if (msg.includes("help")) return "📌 Staff will assist you shortly.";
+  if (msg.includes("status")) return "🟢 System is online.";
 
-  return "🧠 AI: A staff member will handle this shortly.";
+  return "🧠 AI: A staff member will respond shortly.";
 }
 
-// ================= TICKET STORAGE =================
-const ticketData = new Map();
+// ================= TICKETS =================
+const tickets = new Map();
 
 // ================= INTERACTIONS =================
 client.on(Events.InteractionCreate, async (interaction) => {
+
   try {
 
-    // ================= STORE (UNCHANGED) =================
+    // ================= STORE =================
     if (interaction.isChatInputCommand() && interaction.commandName === 'store') {
 
       const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('buy').setLabel('🛒 Buy').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('contact').setLabel('📩 Support').setStyle(ButtonStyle.Primary)
+        new ButtonBuilder()
+          .setCustomId('buy')
+          .setLabel('🛒 Buy Now')
+          .setStyle(ButtonStyle.Success),
+
+        new ButtonBuilder()
+          .setCustomId('support')
+          .setLabel('📩 Support')
+          .setStyle(ButtonStyle.Primary)
       );
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle('🛒 POZ RZ STORE')
+        .setTitle('🟦 POZ RZ CRM STORE')
         .setDescription(`
 💎 Coins Guns ➜ $20-$30
 
@@ -77,13 +90,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 💰 Coins ➜ 10000 Diamonds = $10
 
 🕹️ Tx-No clip per month ➜ $20
-        `);
+        `)
+        .setFooter({ text: '🧠 CRM SYSTEM ACTIVE' });
 
       return interaction.reply({ embeds: [embed], components: [row] });
     }
 
     // ================= CREATE TICKET =================
-    if (interaction.isButton() && (interaction.customId === 'buy' || interaction.customId === 'contact')) {
+    if (interaction.isButton() && (interaction.customId === 'buy' || interaction.customId === 'support')) {
 
       await interaction.deferReply({ ephemeral: true });
 
@@ -91,33 +105,54 @@ client.on(Events.InteractionCreate, async (interaction) => {
         name: `ticket-${interaction.user.username}`,
         type: ChannelType.GuildText,
         permissionOverwrites: [
-          { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+          {
+            id: interaction.guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel]
+          },
+          {
+            id: interaction.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ]
+          },
+          {
+            id: client.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ]
+          }
         ]
       });
 
-      ticketData.set(channel.id, {
-        owner: interaction.user.id,
-        claimed: null,
-        status: "🟡 OPEN"
+      tickets.set(channel.id, {
+        owner: interaction.user.id
       });
 
-      const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('claim').setLabel('📌 Claim').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('close').setLabel('🔒 Close').setStyle(ButtonStyle.Danger)
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('claim')
+          .setLabel('📌 Claim')
+          .setStyle(ButtonStyle.Primary),
+
+        new ButtonBuilder()
+          .setCustomId('close')
+          .setLabel('🔒 Close')
+          .setStyle(ButtonStyle.Danger)
       );
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
         .setTitle('🎫 CRM TICKET SYSTEM')
         .addFields(
-          { name: '👤 User', value: `<@${interaction.user.id}>` },
-          { name: '📌 Status', value: '🟡 OPEN' },
-          { name: '🤖 AI', value: 'Active' }
-        );
+          { name: '👤 User', value: `<@${interaction.user.id}>`, inline: true },
+          { name: '📌 Status', value: '🟡 OPEN', inline: true },
+          { name: '🧠 AI', value: 'ACTIVE', inline: false }
+        )
+        .setFooter({ text: 'CRM SUPPORT PANEL' });
 
-      await channel.send({ embeds: [embed], components: [buttons] });
+      await channel.send({ embeds: [embed], components: [row] });
 
       return interaction.editReply(`✅ Ticket created: ${channel}`);
     }
@@ -125,33 +160,35 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // ================= CLAIM =================
     if (interaction.isButton() && interaction.customId === 'claim') {
 
-      const data = ticketData.get(interaction.channel.id);
-      if (!data) return;
+      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+        return interaction.reply({ content: '❌ Staff only', ephemeral: true });
+      }
 
-      data.claimed = interaction.user.id;
-      data.status = "🟢 CLAIMED";
-
-      const embed = new EmbedBuilder()
-        .setColor(0x00ff00)
-        .setTitle('📌 Ticket Claimed')
-        .setDescription(`Claimed by <@${interaction.user.id}>`);
-
-      return interaction.reply({ embeds: [embed] });
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x00b0f4)
+            .setTitle('📌 Ticket Claimed')
+            .setDescription(`Claimed by <@${interaction.user.id}>`)
+        ]
+      });
     }
 
     // ================= CLOSE =================
     if (interaction.isButton() && interaction.customId === 'close') {
 
-      const data = ticketData.get(interaction.channel.id);
-      if (!data) return;
-
       if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
         return interaction.reply({ content: '❌ Admin only', ephemeral: true });
       }
 
-      data.status = "🔴 CLOSED";
-
-      await interaction.reply('🔒 Closing ticket...');
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xff0000)
+            .setTitle('🔒 Closing Ticket')
+            .setDescription('Deleting in 3 seconds...')
+        ]
+      });
 
       setTimeout(() => {
         interaction.channel.delete().catch(() => {});
@@ -163,11 +200,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-// ================= AI CHAT INSIDE TICKET =================
+// ================= AI CHAT INSIDE TICKETS =================
 client.on(Events.MessageCreate, async (message) => {
 
   if (message.author.bot) return;
-  if (!ticketData.has(message.channel.id)) return;
+  if (!tickets.has(message.channel.id)) return;
 
   const reply = aiReply(message.content);
 

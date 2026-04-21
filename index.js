@@ -17,74 +17,51 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates
   ]
 });
 
 // ================= EXPRESS =================
 const app = express();
-
-app.get('/', (req, res) => {
-  res.send('POZ RZ PANEL LIVE 🟢');
-});
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🔥 PANEL LIVE on port ${PORT}`);
-});
+app.get('/', (req, res) => res.send('🟢 POZ RZ CRM ONLINE'));
+app.listen(process.env.PORT || 5000, () => console.log('🔥 CRM LIVE'));
 
 // ================= READY =================
 client.once(Events.ClientReady, () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
-// ================= ERROR =================
-client.on('error', console.error);
-process.on('unhandledRejection', console.error);
+// ================= SIMPLE AI ENGINE =================
+function aiReply(message) {
+  const msg = message.toLowerCase();
 
-// ================= TOP 2 ADMIN ROLES =================
-function getTopAdminRoles(guild) {
-  return guild.roles.cache
-    .filter(role =>
-      role.name !== '@everyone' &&
-      role.permissions.has(PermissionsBitField.Flags.Administrator)
-    )
-    .sort((a, b) => b.position - a.position)
-    .first(2);
+  if (msg.includes("price")) return "💰 Check the store panel for updated prices.";
+  if (msg.includes("hello")) return "👋 Hello! A staff member will assist you soon.";
+  if (msg.includes("buy")) return "🛒 Use the store button to place an order.";
+  if (msg.includes("help")) return "📌 Support is on the way. Please wait...";
+
+  return "🧠 AI: A staff member will handle this shortly.";
 }
 
-function canClose(member, roles) {
-  return roles.some(role => member.roles.cache.has(role.id));
-}
+// ================= TICKET STORAGE =================
+const ticketData = new Map();
 
 // ================= INTERACTIONS =================
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
 
-    // ================= SLASH COMMANDS =================
-    if (interaction.isChatInputCommand()) {
+    // ================= STORE (UNCHANGED) =================
+    if (interaction.isChatInputCommand() && interaction.commandName === 'store') {
 
-      // ================= STORE (UNCHANGED) =================
-      if (interaction.commandName === 'store') {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('buy').setLabel('🛒 Buy').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('contact').setLabel('📩 Support').setStyle(ButtonStyle.Primary)
+      );
 
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('buy')
-            .setLabel('🛒 Buy Now')
-            .setStyle(ButtonStyle.Success),
-
-          new ButtonBuilder()
-            .setCustomId('contact')
-            .setLabel('📩 Contact Admin')
-            .setStyle(ButtonStyle.Primary)
-        );
-
-        const embed = new EmbedBuilder()
-          .setColor(0x3498db)
-          .setTitle('🛒 POZ RZ STORE')
-          .setDescription(`
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('🛒 POZ RZ STORE')
+        .setDescription(`
 💎 Coins Guns ➜ $20-$30
 
 👕 Clothing Import ➜ $25
@@ -100,201 +77,101 @@ client.on(Events.InteractionCreate, async (interaction) => {
 💰 Coins ➜ 10000 Diamonds = $10
 
 🕹️ Tx-No clip per month ➜ $20
-          `);
+        `);
 
-        return interaction.reply({
-          embeds: [embed],
-          components: [row]
-        });
-      }
-
-      // ================= HELP =================
-      if (interaction.commandName === 'help') {
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x5865F2)
-              .setTitle('📌 COMMANDS')
-              .setDescription(`
-/store
-/help
-/ping
-/avatar
-/serverinfo
-/lock
-/unlock
-/callnow
-/move
-              `)
-          ]
-        });
-      }
-
-      // ================= MOVE =================
-      if (interaction.commandName === 'move') {
-
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.MoveMembers)) {
-          return interaction.reply({ content: '❌ No permission.', ephemeral: true });
-        }
-
-        const vc = interaction.member.voice.channel;
-        if (!vc) return interaction.reply({ content: '❌ Join voice first.', ephemeral: true });
-
-        const channels = interaction.guild.channels.cache
-          .filter(c => c.type === ChannelType.GuildVoice);
-
-        const target = channels.find(c => c.id !== vc.id);
-        if (!target) return interaction.reply('❌ No other voice channel found.');
-
-        await interaction.member.voice.setChannel(target);
-
-        return interaction.reply(`🚚 Moved to **${target.name}**`);
-      }
+      return interaction.reply({ embeds: [embed], components: [row] });
     }
 
-    // ================= BUTTONS =================
-    if (interaction.isButton()) {
+    // ================= CREATE TICKET =================
+    if (interaction.isButton() && (interaction.customId === 'buy' || interaction.customId === 'contact')) {
 
-      const adminRoles = getTopAdminRoles(interaction.guild);
+      await interaction.deferReply({ ephemeral: true });
 
-      if (!adminRoles.length) {
-        return interaction.reply({
-          content: '❌ No admin roles found.',
-          ephemeral: true
-        });
-      }
+      const channel = await interaction.guild.channels.create({
+        name: `ticket-${interaction.user.username}`,
+        type: ChannelType.GuildText,
+        permissionOverwrites: [
+          { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+        ]
+      });
 
-      const mentions = adminRoles.map(r => `<@&${r.id}>`).join(' ');
+      ticketData.set(channel.id, {
+        owner: interaction.user.id,
+        claimed: null,
+        status: "🟡 OPEN"
+      });
 
-      // ================= CREATE TICKET =================
-      if (interaction.customId === 'buy' || interaction.customId === 'contact') {
+      const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('claim').setLabel('📌 Claim').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('close').setLabel('🔒 Close').setStyle(ButtonStyle.Danger)
+      );
 
-        await interaction.deferReply({ ephemeral: true });
-
-        const channel = await interaction.guild.channels.create({
-          name: interaction.customId === 'buy'
-            ? `ticket-${interaction.user.username}`
-            : `support-${interaction.user.username}`,
-
-          type: ChannelType.GuildText,
-
-          permissionOverwrites: [
-            { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-            {
-              id: interaction.user.id,
-              allow: [
-                PermissionsBitField.Flags.ViewChannel,
-                PermissionsBitField.Flags.SendMessages
-              ]
-            },
-            {
-              id: client.user.id,
-              allow: [
-                PermissionsBitField.Flags.ViewChannel,
-                PermissionsBitField.Flags.SendMessages,
-                PermissionsBitField.Flags.ManageChannels
-              ]
-            },
-            ...adminRoles.map(role => ({
-              id: role.id,
-              allow: [
-                PermissionsBitField.Flags.ViewChannel,
-                PermissionsBitField.Flags.SendMessages
-              ]
-            }))
-          ]
-        });
-
-        // ================= CLEAN CRM UI =================
-        const buttons = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('claim_ticket')
-            .setLabel('📌 Claim')
-            .setStyle(ButtonStyle.Primary),
-
-          new ButtonBuilder()
-            .setCustomId('close_ticket')
-            .setLabel('🔒 Close')
-            .setStyle(ButtonStyle.Danger)
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('🎫 CRM TICKET SYSTEM')
+        .addFields(
+          { name: '👤 User', value: `<@${interaction.user.id}>` },
+          { name: '📌 Status', value: '🟡 OPEN' },
+          { name: '🤖 AI', value: 'Active' }
         );
 
-        const ticketEmbed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle('🟦 TICKET PANEL')
-          .addFields(
-            { name: '👤 User', value: `<@${interaction.user.id}>`, inline: true },
-            { name: '📌 Status', value: '🟡 Open', inline: true },
-            { name: '🔔 Staff', value: mentions, inline: false }
-          )
-          .setFooter({ text: 'POZ RZ CRM SYSTEM' });
+      await channel.send({ embeds: [embed], components: [buttons] });
 
-        await channel.send({
-          content: mentions,
-          embeds: [ticketEmbed],
-          components: [buttons]
-        });
+      return interaction.editReply(`✅ Ticket created: ${channel}`);
+    }
 
-        return interaction.editReply(`✅ Ticket created: ${channel}`);
+    // ================= CLAIM =================
+    if (interaction.isButton() && interaction.customId === 'claim') {
+
+      const data = ticketData.get(interaction.channel.id);
+      if (!data) return;
+
+      data.claimed = interaction.user.id;
+      data.status = "🟢 CLAIMED";
+
+      const embed = new EmbedBuilder()
+        .setColor(0x00ff00)
+        .setTitle('📌 Ticket Claimed')
+        .setDescription(`Claimed by <@${interaction.user.id}>`);
+
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    // ================= CLOSE =================
+    if (interaction.isButton() && interaction.customId === 'close') {
+
+      const data = ticketData.get(interaction.channel.id);
+      if (!data) return;
+
+      if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return interaction.reply({ content: '❌ Admin only', ephemeral: true });
       }
 
-      // ================= CLAIM =================
-      if (interaction.customId === 'claim_ticket') {
+      data.status = "🔴 CLOSED";
 
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-          return interaction.reply({
-            content: '❌ Staff only.',
-            ephemeral: true
-          });
-        }
+      await interaction.reply('🔒 Closing ticket...');
 
-        const claimEmbed = new EmbedBuilder()
-          .setColor(0x00b0f4)
-          .setTitle('📌 Ticket Claimed')
-          .setDescription(`Claimed by <@${interaction.user.id}>`);
-
-        await interaction.channel.send({ embeds: [claimEmbed] });
-
-        return interaction.reply({
-          content: '📌 You claimed this ticket.',
-          ephemeral: true
-        });
-      }
-
-      // ================= CLOSE =================
-      if (interaction.customId === 'close_ticket') {
-
-        if (!canClose(interaction.member, adminRoles)) {
-          return interaction.reply({
-            content: '❌ Only admins can close tickets.',
-            ephemeral: true
-          });
-        }
-
-        await interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0xff0000)
-              .setTitle('🔒 Closing Ticket')
-              .setDescription('Deleting in 3 seconds...')
-          ]
-        });
-
-        setTimeout(() => {
-          interaction.channel.delete().catch(() => {});
-        }, 3000);
-      }
+      setTimeout(() => {
+        interaction.channel.delete().catch(() => {});
+      }, 3000);
     }
 
   } catch (err) {
     console.error(err);
-
-    if (!interaction.replied && !interaction.deferred) {
-      interaction.reply({
-        content: '❌ Something went wrong.',
-        ephemeral: true
-      }).catch(() => {});
-    }
   }
+});
+
+// ================= AI CHAT INSIDE TICKET =================
+client.on(Events.MessageCreate, async (message) => {
+
+  if (message.author.bot) return;
+  if (!ticketData.has(message.channel.id)) return;
+
+  const reply = aiReply(message.content);
+
+  message.channel.send(`🧠 ${reply}`);
 });
 
 // ================= LOGIN =================

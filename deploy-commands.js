@@ -24,19 +24,21 @@ const commands = [
 
   new SlashCommandBuilder().setName('callnow').setDescription('Ping all VC members'),
 
-  // ================= MOVE COMMAND (VOICE ONLY FIX) =================
+  // ================= MOVE (VOICE ONLY LOCKED) =================
   new SlashCommandBuilder()
     .setName('move')
-    .setDescription('Move a member to a VOICE channel only')
+    .setDescription('Move a member to a voice channel')
     .addUserOption(option =>
-      option.setName('user')
+      option
+        .setName('user')
         .setDescription('Member to move')
         .setRequired(true)
     )
     .addChannelOption(option =>
-      option.setName('channel')
-        .setDescription('Select a VOICE channel only')
-        .addChannelTypes(ChannelType.GuildVoice) // 🔥 THIS LOCKS IT TO VOICE ONLY
+      option
+        .setName('channel')
+        .setDescription('Voice channel only')
+        .addChannelTypes(ChannelType.GuildVoice) // 🔥 STRICT VOICE ONLY
         .setRequired(true)
     )
 ].map(cmd => cmd.toJSON());
@@ -44,11 +46,21 @@ const commands = [
 // ================= REST =================
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
-// ================= REGISTER =================
+// ================= REGISTER (FORCE REFRESH FIX) =================
 (async () => {
   try {
-    console.log('Registering slash commands...');
+    console.log('🚀 Registering slash commands...');
 
+    // 🔥 THIS CLEARS OLD CACHE PROPERLY
+    await rest.put(
+      Routes.applicationGuildCommands(
+        process.env.DISCORD_CLIENT_ID,
+        process.env.DISCORD_GUILD_ID
+      ),
+      { body: [] } // clear old commands first
+    );
+
+    // 🔥 THEN RE-REGISTER CLEAN
     const data = await rest.put(
       Routes.applicationGuildCommands(
         process.env.DISCORD_CLIENT_ID,

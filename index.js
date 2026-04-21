@@ -63,12 +63,10 @@ function canClose(member, roles) {
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
 
-    // =================================================
-    // SLASH COMMANDS
-    // =================================================
+    // ================= SLASH COMMANDS =================
     if (interaction.isChatInputCommand()) {
 
-      // ================= STORE =================
+      // ================= STORE (UNCHANGED) =================
       if (interaction.commandName === 'store') {
 
         const row = new ActionRowBuilder().addComponents(
@@ -115,8 +113,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({
           embeds: [
             new EmbedBuilder()
-              .setColor(0x2ecc71)
-              .setTitle('📌 COMMAND LIST')
+              .setColor(0x5865F2)
+              .setTitle('📌 POZ RZ COMMAND PANEL')
               .setDescription(`
 /store
 /help
@@ -132,106 +130,21 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
 
-      // ================= PING =================
-      if (interaction.commandName === 'ping') {
-        return interaction.reply(`🏓 Pong: ${client.ws.ping}ms`);
-      }
-
-      // ================= AVATAR =================
-      if (interaction.commandName === 'avatar') {
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x5865F2)
-              .setTitle(`${interaction.user.username}'s Avatar`)
-              .setImage(interaction.user.displayAvatarURL({ size: 1024 }))
-          ]
-        });
-      }
-
-      // ================= SERVERINFO =================
-      if (interaction.commandName === 'serverinfo') {
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x00b0f4)
-              .setTitle(interaction.guild.name)
-              .addFields(
-                { name: '👥 Members', value: `${interaction.guild.memberCount}`, inline: true },
-                { name: '📁 Channels', value: `${interaction.guild.channels.cache.size}`, inline: true },
-                { name: '🎭 Roles', value: `${interaction.guild.roles.cache.size}`, inline: true }
-              )
-          ]
-        });
-      }
-
-      // ================= LOCK =================
-      if (interaction.commandName === 'lock') {
-
-        await interaction.channel.permissionOverwrites.edit(interaction.guild.id, {
-          SendMessages: false
-        });
-
-        return interaction.reply('🔒 Channel locked.');
-      }
-
-      // ================= UNLOCK =================
-      if (interaction.commandName === 'unlock') {
-
-        await interaction.channel.permissionOverwrites.edit(interaction.guild.id, {
-          SendMessages: true
-        });
-
-        return interaction.reply('🔓 Channel unlocked.');
-      }
-
-      // ================= CALLNOW =================
-      if (interaction.commandName === 'callnow') {
-
-        const vc = interaction.member.voice.channel;
-
-        if (!vc) {
-          return interaction.reply({
-            content: '❌ Join a voice channel first.',
-            ephemeral: true
-          });
-        }
-
-        const users = vc.members
-          .filter(m => !m.user.bot)
-          .map(m => `<@${m.id}>`)
-          .join(' ');
-
-        return interaction.reply(`📞 CALL NOW!\n${users}`);
-      }
-
       // ================= MOVE =================
       if (interaction.commandName === 'move') {
 
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.MoveMembers)) {
-          return interaction.reply({
-            content: '❌ No permission.',
-            ephemeral: true
-          });
+          return interaction.reply({ content: '❌ No permission.', ephemeral: true });
         }
 
         const vc = interaction.member.voice.channel;
-
-        if (!vc) {
-          return interaction.reply({
-            content: '❌ Join voice first.',
-            ephemeral: true
-          });
-        }
+        if (!vc) return interaction.reply({ content: '❌ Join voice first.', ephemeral: true });
 
         const channels = interaction.guild.channels.cache
           .filter(c => c.type === ChannelType.GuildVoice);
 
         const target = channels.find(c => c.id !== vc.id);
-
-        if (!target) {
-          return interaction.reply('❌ No other voice channel found.');
-        }
+        if (!target) return interaction.reply('❌ No other voice channel found.');
 
         await interaction.member.voice.setChannel(target);
 
@@ -239,18 +152,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
-    // =================================================
-    // BUTTONS
-    // =================================================
+    // ================= BUTTONS =================
     if (interaction.isButton()) {
 
       const adminRoles = getTopAdminRoles(interaction.guild);
 
-      if (adminRoles.length === 0) {
-        return interaction.reply({
-          content: '❌ No admin roles found.',
-          ephemeral: true
-        });
+      if (!adminRoles.length) {
+        return interaction.reply({ content: '❌ No admin roles found.', ephemeral: true });
       }
 
       const mentions = adminRoles.map(r => `<@&${r.id}>`).join(' ');
@@ -261,18 +169,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.deferReply({ ephemeral: true });
 
         const channel = await interaction.guild.channels.create({
-          name:
-            interaction.customId === 'buy'
-              ? `ticket-${interaction.user.username}`
-              : `support-${interaction.user.username}`,
+          name: interaction.customId === 'buy'
+            ? `ticket-${interaction.user.username}`
+            : `support-${interaction.user.username}`,
 
           type: ChannelType.GuildText,
 
           permissionOverwrites: [
-            {
-              id: interaction.guild.id,
-              deny: [PermissionsBitField.Flags.ViewChannel]
-            },
+            { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
             {
               id: interaction.user.id,
               allow: [
@@ -298,33 +202,39 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ]
         });
 
+        // ================= CLEAN TICKET UI =================
         const closeRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('close_ticket')
-            .setLabel('🔒 Close Ticket')
-            .setStyle(ButtonStyle.Danger)
+            .setLabel('🔒 Close')
+            .setStyle(ButtonStyle.Danger),
+
+          new ButtonBuilder()
+            .setCustomId('claim_ticket')
+            .setLabel('📌 Claim')
+            .setStyle(ButtonStyle.Primary)
         );
+
+        const ticketEmbed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle('🎫 TICKET PANEL')
+          .addFields(
+            { name: '👤 User', value: `<@${interaction.user.id}>`, inline: true },
+            { name: '📌 Status', value: 'Waiting for staff...', inline: true },
+            { name: '🔔 Staff', value: mentions, inline: false }
+          )
+          .setFooter({ text: 'POZ RZ CRM SYSTEM' });
 
         await channel.send({
           content: mentions,
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x5865F2)
-              .setTitle('🎫 NEW TICKET')
-              .setDescription(`
-👤 User: <@${interaction.user.id}>
-🔔 Staff: ${mentions}
-
-Please wait for support.
-              `)
-          ],
+          embeds: [ticketEmbed],
           components: [closeRow]
         });
 
         return interaction.editReply(`✅ Ticket created: ${channel}`);
       }
 
-      // ================= CLOSE TICKET =================
+      // ================= CLOSE (ADMIN ONLY) =================
       if (interaction.customId === 'close_ticket') {
 
         if (!canClose(interaction.member, adminRoles)) {
@@ -339,13 +249,31 @@ Please wait for support.
             new EmbedBuilder()
               .setColor(0xff0000)
               .setTitle('🔒 Closing Ticket')
-              .setDescription('Deleting in **3 seconds...**')
+              .setDescription('Deleting in 3 seconds...')
           ]
         });
 
-        setTimeout(() => {
-          interaction.channel.delete().catch(() => {});
-        }, 3000);
+        setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
+      }
+
+      // ================= CLAIM TICKET =================
+      if (interaction.customId === 'claim_ticket') {
+
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+          return interaction.reply({
+            content: '❌ Only staff can claim tickets.',
+            ephemeral: true
+          });
+        }
+
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x00b0f4)
+              .setTitle('📌 Ticket Claimed')
+              .setDescription(`Claimed by <@${interaction.user.id}>`)
+          ]
+        });
       }
     }
 

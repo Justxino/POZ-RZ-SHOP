@@ -12,6 +12,13 @@ const {
   ChannelType
 } = require('discord.js');
 
+const { OpenAI } = require('openai');
+
+// ================= AI =================
+const ai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
 // ================= CLIENT =================
 const client = new Client({
   intents: [
@@ -27,7 +34,7 @@ const client = new Client({
 const app = express();
 app.get('/', (req, res) => res.send('🟢 CRM ONLINE'));
 app.listen(process.env.PORT || 5000, () => {
-  console.log('🔥 CRM PANEL LIVE');
+  console.log('🔥 CRM LIVE');
 });
 
 // ================= READY =================
@@ -35,21 +42,32 @@ client.once(Events.ClientReady, () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
-// ================= SIMPLE AI =================
-function aiReply(msg) {
-  msg = msg.toLowerCase();
-
-  if (msg.includes("price")) return "💰 Check /store for prices.";
-  if (msg.includes("hello")) return "👋 Hello! Support will help you soon.";
-  if (msg.includes("buy")) return "🛒 Use store to purchase.";
-  if (msg.includes("help")) return "📌 Staff will assist you shortly.";
-  if (msg.includes("status")) return "🟢 System is online.";
-
-  return "🧠 AI: A staff member will respond shortly.";
-}
-
-// ================= TICKETS =================
+// ================= TICKETS STORAGE =================
 const tickets = new Map();
+
+// ================= REAL AI =================
+async function aiReply(msg) {
+  try {
+    const res = await ai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a Discord CRM support assistant. Help users clearly, short replies, professional tone."
+        },
+        {
+          role: "user",
+          content: msg
+        }
+      ]
+    });
+
+    return res.choices[0].message.content;
+  } catch (err) {
+    console.error(err);
+    return "❌ AI temporarily unavailable.";
+  }
+}
 
 // ================= INTERACTIONS =================
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -126,9 +144,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         ]
       });
 
-      tickets.set(channel.id, {
-        owner: interaction.user.id
-      });
+      tickets.set(channel.id, { owner: interaction.user.id });
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -144,13 +160,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle('🎫 CRM TICKET SYSTEM')
+        .setTitle('🎫 CRM TICKET')
         .addFields(
           { name: '👤 User', value: `<@${interaction.user.id}>`, inline: true },
           { name: '📌 Status', value: '🟡 OPEN', inline: true },
           { name: '🧠 AI', value: 'ACTIVE', inline: false }
         )
-        .setFooter({ text: 'CRM SUPPORT PANEL' });
+        .setFooter({ text: 'CRM SUPPORT SYSTEM' });
 
       await channel.send({ embeds: [embed], components: [row] });
 
@@ -190,9 +206,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         ]
       });
 
-      setTimeout(() => {
-        interaction.channel.delete().catch(() => {});
-      }, 3000);
+      setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
     }
 
   } catch (err) {
@@ -200,13 +214,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-// ================= AI CHAT INSIDE TICKETS =================
+// ================= REAL AI CHAT INSIDE TICKETS =================
 client.on(Events.MessageCreate, async (message) => {
 
   if (message.author.bot) return;
   if (!tickets.has(message.channel.id)) return;
 
-  const reply = aiReply(message.content);
+  const reply = await aiReply(message.content);
 
   message.channel.send(`🧠 ${reply}`);
 });

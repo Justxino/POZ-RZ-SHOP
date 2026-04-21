@@ -24,10 +24,10 @@ const commands = [
 
   new SlashCommandBuilder().setName('callnow').setDescription('Ping all VC members'),
 
-  // ================= FIXED MOVE COMMAND =================
+  // ================= MOVE COMMAND (VOICE ONLY FIX) =================
   new SlashCommandBuilder()
     .setName('move')
-    .setDescription('Move a member to a voice channel')
+    .setDescription('Move a member to a VOICE channel only')
     .addUserOption(option =>
       option.setName('user')
         .setDescription('Member to move')
@@ -35,11 +35,11 @@ const commands = [
     )
     .addChannelOption(option =>
       option.setName('channel')
-        .setDescription('Target voice channel')
-        .addChannelTypes(ChannelType.GuildVoice) // IMPORTANT FIX
+        .setDescription('Select a VOICE channel only')
+        .addChannelTypes(ChannelType.GuildVoice) // 🔥 THIS LOCKS IT TO VOICE ONLY
         .setRequired(true)
     )
-].map(c => c.toJSON());
+].map(cmd => cmd.toJSON());
 
 // ================= REST =================
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -57,8 +57,8 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
       { body: commands }
     );
 
-    console.log(`✅ Registered ${data.length} commands`);
+    console.log(`✅ Successfully registered ${data.length} commands`);
   } catch (err) {
-    console.error('❌ Error:', err);
+    console.error('❌ Error registering commands:', err);
   }
 })();

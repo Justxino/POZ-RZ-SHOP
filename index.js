@@ -114,7 +114,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           embeds: [
             new EmbedBuilder()
               .setColor(0x5865F2)
-              .setTitle('📌 POZ RZ COMMAND PANEL')
+              .setTitle('📌 COMMANDS')
               .setDescription(`
 /store
 /help
@@ -158,7 +158,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const adminRoles = getTopAdminRoles(interaction.guild);
 
       if (!adminRoles.length) {
-        return interaction.reply({ content: '❌ No admin roles found.', ephemeral: true });
+        return interaction.reply({
+          content: '❌ No admin roles found.',
+          ephemeral: true
+        });
       }
 
       const mentions = adminRoles.map(r => `<@&${r.id}>`).join(' ');
@@ -202,25 +205,25 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ]
         });
 
-        // ================= CLEAN TICKET UI =================
-        const closeRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('close_ticket')
-            .setLabel('🔒 Close')
-            .setStyle(ButtonStyle.Danger),
-
+        // ================= CLEAN CRM UI =================
+        const buttons = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('claim_ticket')
             .setLabel('📌 Claim')
-            .setStyle(ButtonStyle.Primary)
+            .setStyle(ButtonStyle.Primary),
+
+          new ButtonBuilder()
+            .setCustomId('close_ticket')
+            .setLabel('🔒 Close')
+            .setStyle(ButtonStyle.Danger)
         );
 
         const ticketEmbed = new EmbedBuilder()
           .setColor(0x5865F2)
-          .setTitle('🎫 TICKET PANEL')
+          .setTitle('🟦 TICKET PANEL')
           .addFields(
             { name: '👤 User', value: `<@${interaction.user.id}>`, inline: true },
-            { name: '📌 Status', value: 'Waiting for staff...', inline: true },
+            { name: '📌 Status', value: '🟡 Open', inline: true },
             { name: '🔔 Staff', value: mentions, inline: false }
           )
           .setFooter({ text: 'POZ RZ CRM SYSTEM' });
@@ -228,18 +231,41 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await channel.send({
           content: mentions,
           embeds: [ticketEmbed],
-          components: [closeRow]
+          components: [buttons]
         });
 
         return interaction.editReply(`✅ Ticket created: ${channel}`);
       }
 
-      // ================= CLOSE (ADMIN ONLY) =================
+      // ================= CLAIM =================
+      if (interaction.customId === 'claim_ticket') {
+
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+          return interaction.reply({
+            content: '❌ Staff only.',
+            ephemeral: true
+          });
+        }
+
+        const claimEmbed = new EmbedBuilder()
+          .setColor(0x00b0f4)
+          .setTitle('📌 Ticket Claimed')
+          .setDescription(`Claimed by <@${interaction.user.id}>`);
+
+        await interaction.channel.send({ embeds: [claimEmbed] });
+
+        return interaction.reply({
+          content: '📌 You claimed this ticket.',
+          ephemeral: true
+        });
+      }
+
+      // ================= CLOSE =================
       if (interaction.customId === 'close_ticket') {
 
         if (!canClose(interaction.member, adminRoles)) {
           return interaction.reply({
-            content: '❌ Only top admins can close tickets.',
+            content: '❌ Only admins can close tickets.',
             ephemeral: true
           });
         }
@@ -253,27 +279,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ]
         });
 
-        setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
-      }
-
-      // ================= CLAIM TICKET =================
-      if (interaction.customId === 'claim_ticket') {
-
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-          return interaction.reply({
-            content: '❌ Only staff can claim tickets.',
-            ephemeral: true
-          });
-        }
-
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x00b0f4)
-              .setTitle('📌 Ticket Claimed')
-              .setDescription(`Claimed by <@${interaction.user.id}>`)
-          ]
-        });
+        setTimeout(() => {
+          interaction.channel.delete().catch(() => {});
+        }, 3000);
       }
     }
 
